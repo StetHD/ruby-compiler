@@ -138,10 +138,6 @@ off_t __syscall(quad_t number, ...);
 #define open	rb_w32_uopen
 #endif
 
-// ======= [Enclose.io Hack start] =========
-#include "enclose_io.h"
-// ======= [Enclose.io Hack end] =========
-
 VALUE rb_cIO;
 VALUE rb_eEOFError;
 VALUE rb_eIOError;

@@ -106,10 +106,6 @@ char *strchr(char*,char);
 # define NORMALIZE_UTF8PATH 0
 #endif
 
-// ======= [Enclose.io Hack start] =========
-#include "enclose_io.h"
-// ======= [Enclose.io Hack end] =========
-
 #if NORMALIZE_UTF8PATH
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -127,10 +123,8 @@ need_normalization(DIR *dirp, const char *path)
     u_int32_t attrbuf[SIZEUP32(fsobj_tag_t)];
     struct attrlist al = {ATTR_BIT_MAP_COUNT, 0, ATTR_CMN_OBJTAG,};
 #   if defined HAVE_FGETATTRLIST
-    if (squash_find_entry(dirp)) { return FALSE; }
     int ret = fgetattrlist(dirfd(dirp), &al, attrbuf, sizeof(attrbuf), 0);
 #   else
-    if (enclose_io_is_path(path)) { return FALSE; }
     int ret = getattrlist(path, &al, attrbuf, sizeof(attrbuf), 0);
 #   endif
     if (!ret) {
@@ -540,12 +534,7 @@ dir_initialize(int argc, VALUE *argv, VALUE dir)
 	else if (e == EIO) {
 	    u_int32_t attrbuf[1];
 	    struct attrlist al = {ATTR_BIT_MAP_COUNT, 0};
-	    if (enclose_io_is_path(path)) {
-		struct stat buf;
-		if (0 == squash_lstat(enclose_io_fs, path, &buf)) {
-			dp->dir = opendir(path);
-		}
-	    } else if (getattrlist(path, &al, attrbuf, sizeof(attrbuf), FSOPT_NOFOLLOW) == 0) {
+	    if (getattrlist(path, &al, attrbuf, sizeof(attrbuf), FSOPT_NOFOLLOW) == 0) {
 		dp->dir = opendir(path);
 	    }
 	}
@@ -1539,8 +1528,6 @@ is_case_sensitive(DIR *dirp)
     const int idx = VOL_CAPABILITIES_FORMAT;
     const uint32_t mask = VOL_CAP_FMT_CASE_SENSITIVE;
 
-    if (squash_find_entry(dirp)) { return 1; }
-
     if (fgetattrlist(dirfd(dirp), &al, attrbuf, sizeof(attrbuf), FSOPT_NOFOLLOW))
 	return -1;
     if (!(cap->valid[idx] & mask))
@@ -1982,7 +1969,7 @@ glob_helper(
 		    break;
 		}
 #if USE_NAME_ON_FS == USE_NAME_ON_FS_REAL_BASENAME
-		if ((*cur)->type == ALPHA && !enclose_io_is_path(buf)) {
+		if ((*cur)->type == ALPHA) {
 		    long base = pathlen + (dirsep != 0);
 		    buf = replace_real_basename(buf, base, enc, IF_NORMALIZE_UTF8PATH(1)+0,
 						flags, &new_pathtype);
@@ -2681,7 +2668,7 @@ rb_dir_s_empty_p(VALUE obj, VALUE dirname)
     path = RSTRING_PTR(dirname);
 
 #if defined HAVE_GETATTRLIST && defined ATTR_DIR_ENTRYCOUNT
-    if (!enclose_io_is_path(path)) {
+    {
 	u_int32_t attrbuf[SIZEUP32(fsobj_tag_t)];
 	struct attrlist al = {ATTR_BIT_MAP_COUNT, 0, ATTR_CMN_OBJTAG,};
 	if (getattrlist(path, &al, attrbuf, sizeof(attrbuf), 0) != 0)
